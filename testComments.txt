@@ -1,0 +1,44 @@
+!UpdateMe on u/user,True
+!UpdateMe on u/user in subreddit,True
+!UpdateMe on post,True
+!UpdateMe on all,True
+!UpdateMe ON op,True
+!UpdateMe on op in subREDDIt,True
+!UpdateMe oN post,True
+!UpdateMe on All,True
+!UpdateMe on oP.,True
+!UpdateMe on Op IN subreddit.,True
+!UpdateMe on post.,True
+!UpdateMe on all.,True
+!UpdateMe on op. Testing extra text.,True
+!UpdateMe on oP in subreddit. Testing extra text,True
+!UpdateMe on post. Testing extra text,True
+!UpdateMe on all. Testing extra text,True
+Testing extra text. !UpdateMe on op. Testing extra text.,True
+Testing extra text. !UpdateMe on op in subreddit. Testing extra text.,True
+Testing extra text. !UpdateMe on post. Testing extra text.,True
+Testing extra text. !UpdateMe on all. Testing extra text.,True
+!UpdateMe help,True
+There shouldn't be a response here.,False
+Or here,False
+Or here too,False
+!UpdootMe,False
+!UpdateMe when votes > 1000,True
+!UpdateMe when votes>1000,True
+!UpdateMe when comments > 1k,True
+!UpdateMe when votes > 2.5k,True
+!UpdateMe when comments>=1k,True
+!UpdateMe when votes >= 2.5k,True
+!UpdateMe when 3,False
+!UpdateMe on,False
+!UpdateMe on . all,True
+!UpdateMe when count<=500,False
+"!UpdateMe",False
+!UpdateMe on u/Test,True
+!UpdateMe on u/Testing in Subreddit,True
+!UpdateMe when u/Test,False
+!UpdateMe when comments u/Test in subreddit,False
+!UpdateMe,False
+!UpdateMe help in subreddit,True
+!UpdateMe help post,True
+!UpdateMe on u/Test in nothing,True
