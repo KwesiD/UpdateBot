@@ -12,11 +12,12 @@ TABLES['submissions'] = (
     "   `submission_id` varchar(10) NOT NULL,"  #I believe comment id's are 10 characters and submission id's are 9. 
     "   `uid` int NOT NULL AUTO_INCREMENT,"
     "   `type` tinyint(1),"
-    "   `url` varchar(108) NOT NULL," #90 + len("https://reddit.com") according to https://www.reddit.com/r/redditdev/comments/dcd39/maximum_string_lengths_in_reddit/
+    "   `post_permalink` varchar(120) NOT NULL,"  #Dont know the max permalink size maybe max_subreddit_title_size + len("comments") + len(subreddit_id) + max_post_title_size + length of r/ and delimiting slashes
+    "   `parent_permalink` varchar(120) NOT NULL,"
     "   `hash` varchar(32) NOT NULL,"
     "   `poster` varchar(22),"  #Username max length: 20 + len("u/")
     "   `requester` varchar(22) NOT NULL,"
-    "   `expiration_date` date NOT NULL,"
+    "   `expiration_date` int(13)  NOT NULL,"
     "   `num_upvotes` int(32) NOT NULL,"
     "   `num_comments` int(32) NOT NULL,"
     "   PRIMARY KEY (`uid`)"
@@ -58,10 +59,9 @@ for name, ddl in TABLES.items():
         print("OK")
 
 
-# add_user = ("INSERT ignore INTO posts"
-#                "(username,local,title,body,date,months,seeking,offering,pid)"
-#                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-#                #"WHERE NOT EXISTS (SELECT uid FROM users u)"
-#                )
+add_submission = ("INSERT ignore INTO submissions"
+        "(submission_id,type,post_permalink,parent_permalink,hash,poster,requester,expiration_date,num_upvotes,num_comments)"
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        )
 
 # get_users = ("SELECT username,pid FROM posts")
