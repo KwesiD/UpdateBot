@@ -1,7 +1,7 @@
 import praw
 from pprint import pprint
 import config
-from sqlconfig import cursor,cnx,add_submission
+from sqlconfig import cursor,cnx,add_submission,retrieve_submissions,update_submission,delete_submissions,purge_table
 import string
 import hashlib
 import time
@@ -145,7 +145,6 @@ def processRequest(parsedComment,comment):
 		onHandler(parsedComment,comment)
 
 
-
 def onHandler(request,comment):
 	"""
 	Handler for when the user uses the "on" mode.
@@ -160,10 +159,9 @@ def onHandler(request,comment):
 	print(request)
 	if(request["target"] == "post"):
 		parent = comment.submission #In this case, the parent is the originating thread
-		# pprint(vars(comment))
-		# pprint(vars(parent))
-		comment_id = comment.id
-		comment_type = 0 #post
+		comment_id = comment.id #the id of the requesting comment
+		parent_id = parent.id #the id of the parent post
+		submission_type = 0 #post
 		comment_permalink = comment.permalink
 		parent_permalink = parent.permalink
 		body_hash = hashlib.md5(parent.selftext.encode('utf-8')).hexdigest() #hexdigest converts into string
@@ -171,40 +169,40 @@ def onHandler(request,comment):
 		requester = comment.author.name
 		num_upvotes = parent.ups
 		num_comments = parent.num_comments
-		expiration_date = get_time_seconds() + 259200 #3 days from now
+		subreddit_name = parent.subreddit.display_name
+		expiration_date = get_time_seconds() + 60#259200 #3 days from now
 		params = (
-			comment_id,comment_type,comment_permalink,
-					parent_permalink,body_hash,poster,requester,
+					comment_id,parent_id,submission_type,comment_permalink,
+					parent_permalink,body_hash,poster,requester,subreddit_name,
 					expiration_date,num_upvotes,num_comments
 					)
 
-		reply_body = (f"Hi u/{requester}! I'll make sure to remind you about u/{poster}\'s [post]({parent_permalink})!")
+		reply_body = (f"Hi u/{requester}! I'll make sure to remind you about u/{poster}\'s [post](http://reddit.com{parent_permalink})!")
 
 		addSubmissionToDatabase(params) #sends data to sql server
 		replyToComment(comment,reply_body)
 
 	if(request["target"] == "comment"):
 		parent = comment.parent() #In this case, the parent is the parent comment
-		#pprint(vars(comment))
-		#pprint(vars(parent))
 		comment_id = comment.id
-		comment_type = 0 #comment
+		parent_id = parent.id
+		submission_type = 1 #comment
 		comment_permalink = comment.permalink
 		parent_permalink = parent.permalink
-		body_hash = hashlib.md5(parent.body.encode('utf-8')).hexdigest() #hexdigest converts into string
+		body_hash = hashlib.md5(parent.body.encode('utf-8')).hexdigest() #Gets the md5 hash of the string. Hexdigest converts into string
 		poster = parent.author.name
 		requester = comment.author.name
 		num_upvotes = parent.ups
-		print(parent.replies)
 		num_comments = len(parent.replies)
-		expiration_date = get_time_seconds() + 259200 #3 days from now
+		subreddit_name = parent.subreddit.display_name
+		expiration_date = get_time_seconds() + 60#259200 #3 days from now
 		params = (
-			comment_id,comment_type,comment_permalink,
-					parent_permalink,body_hash,poster,requester,
+					comment_id,parent_id,submission_type,comment_permalink,
+					parent_permalink,body_hash,poster,requester,subreddit_name,
 					expiration_date,num_upvotes,num_comments
 					)
 
-		reply_body = (f"Hi u/{requester}! I'll make sure to remind you about u/{poster}\'s [comment]({parent_permalink})!")
+		reply_body = (f"Hi u/{requester}! I'll make sure to remind you about u/{poster}\'s [comment](https://reddit.com{parent_permalink})!")
 
 		addSubmissionToDatabase(params) #sends data to sql server
 		replyToComment(comment,reply_body)
@@ -219,6 +217,16 @@ def addSubmissionToDatabase(queryParams):
 	"""
 	cursor.execute(add_submission,queryParams)
 	cnx.commit()
+
+
+def retrieveSubmissionsFromDatabase():
+	cursor.execute(retrieve_submissions)
+	submissions = []
+	for submission in cursor:
+		#print(user)
+		submissions.append(submission)
+	return submissions
+
 
 def replyToComment(comment,body):
 	"""
@@ -238,6 +246,55 @@ def replyToComment(comment,body):
 	else:
 		raise ValueError("Comment required!")
 
+
+def sendMessage(submission,body):
+	"""
+	Sends a message to inform the recipient that the post/comment they were following
+	has been updated.
+		-submission: The SQL entry of the request as a tuple.
+		-body: The message body. 
+	"""
+	recipient = submission[8]
+	subredditName = submission[9]
+	postAuthor = submission[7]
+	postType = getPostType(submission[3])
+	footer = "" #footer for message
+	subject = f"u/{postAuthor}'s {postType} in r/{subredditName} has been updated!"
+	reddit.redditor(recipient).message(subject,body+footer)
+
+
+def updateSubmission(submission):
+	"""
+	Updates the table entry with the new information.
+		-submission: A tuple ocntaining all of the updated information on a query
+	"""
+	newSubmission = submission[:2] + submission[3:] + (submission[2],) #slice out the uid at index 2 and place it at the end (to satisfy the WHERE clause)
+	cursor.execute(update_submission,newSubmission)
+	cnx.commit()
+
+def deleteSubmissions(uids):
+	"""
+	Deletes a table entry
+		-uids: The list of uids of the rows to be deleted
+	"""
+	if(len(uids) == 0):
+		return 
+	paramInflater = ','.join(['%s'] * len(uids)) #adjusts number of inputs for query to match number of inputs passed in
+	cursor.execute(delete_submissions % paramInflater,tuple(uids))
+	cnx.commit()
+	print("Deleted",uids)
+
+def getPostType(typeNum):
+	"""
+	Converts the type number into a string for the post type
+	Post: 0		Comment: 1
+		-typeNum: The type number for the post type
+	returns: The post type as a string
+	"""
+	if(typeNum == 0):
+		return "post"
+	elif(typeNum == 1):
+		return "comment"
 
 
 # #Initialize PRAW
@@ -283,6 +340,11 @@ print("Initializing praw...")
 
 bot_account = reddit.redditor("UpdatesAssistant") #This bot's reddit account
 
+##only for test testing: 
+#purge table before booting 
+cursor.execute(purge_table)
+cnx.commit()
+##
 #delete all of this bots comments before testing
 for comment in bot_account.comments.new(limit=None):
 	comment.delete()
@@ -307,3 +369,40 @@ for submission in subreddit.hot(): #get all of the posts in the subreddit
 		else:
 			print("Not a summons:",comment.body)
 			continue  #continue if this comment does not contain a summons
+
+while(True):
+	submissions = retrieveSubmissionsFromDatabase()
+	submission_uids = [] #list of uids to deleete
+	for submission in submissions:  #   0           1       2     3          4           5           6      7        8        9           10          11           12
+		#Submission entry columns: (requester_id,target_id,uid,type,post_permalink,parent_permalink,hash,poster,requester,subreddit,expiration_date,num_upvotes,num_comments)
+
+		target_id = submission[1] #the id of the target submission
+		oldHash = submission[6] #the old hash of the submission
+		newHash = ""
+		postType = getPostType(submission[3])
+		if(postType == "post"):
+			post = reddit.submission(target_id)
+			#pprint(vars(post))
+			postBody = post.selftext
+			newHash = hashlib.md5(postBody.encode('utf-8')).hexdigest()
+		elif(postType == "comment"):
+			comment = reddit.comment(target_id)
+			commentBody = comment.body
+			newHash = hashlib.md5(commentBody.encode('utf-8')).hexdigest()
+
+		if(oldHash != newHash): #compare the hashes
+			#post was edited
+			submission = submission[:6] + (newHash,) + submission[7:] #edit tuple to replace the old hash value
+			print(submission)
+			requester = submission[8]
+			parent_permalink = submission[5]
+			updateSubmission(submission) #Update submission with new hash.
+			updateMessage = f"Hi u/{requester}! The {postType} you have been following has been updated. You can find it [here](https://reddit.com{parent_permalink})!"
+			sendMessage(submission,updateMessage) #Send message that the post was updated
+
+		expiration_date = submission[10]
+		if(get_time_seconds() >= expiration_date): #when the request is passed its expiration date, stop updating requester and delete from database
+			submission_uids.append(submission[2]) #uid
+
+	deleteSubmissions(submission_uids)
+
