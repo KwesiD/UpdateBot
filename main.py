@@ -40,7 +40,7 @@ def parseComment(comment):
 	!UpdateMe [mode] [target] (in [target2])/([clause])
 	Examples: !UpdateMe on user in subreddit | !UpdateMe when votes > 1000
 	"""
-	modes = ["on","when","help",]  #what kind of query is this?
+	modes = ["on","when","help",]  #what kind of query this is
 	targets = ["op","post","all","comment"] #target can also be a username such as u/UpdatesAssistant
 
 
@@ -59,9 +59,9 @@ def parseComment(comment):
 					hasIn = True
 					target2 = queryWindow[4]
 
-		elif(mode == "when"):
+		elif(mode == "when"):  
 			mode = queryWindow[1]
-			operators = [">",">="]
+			operators = [">",">=","="] # = should be after >= to prevent any mixups 
 			if(queryWindow[2] != None and queryWindow[3] != None and queryWindow[4] != None): #if clause is delimited by whitespace
 				if(queryWindow[3] in operators):
 					clause = (queryWindow[2],queryWindow[3],queryWindow[4])
@@ -70,7 +70,7 @@ def parseComment(comment):
 				for operator in operators:
 					if(operator in queryWindow[2]):
 						splitToken = queryWindow[2].split(operator)
-						clause = (splitToken[0],operator,splitToken[1])
+						clause = (splitToken[0],operator,splitToken[1])   #TODO: Ensure that the first part of the clause is valid
 						break
 
 		elif(mode == "help"):
@@ -141,8 +141,39 @@ def processRequest(parsedComment,comment):
 		-parsedComment: the object containing the keywords from the comment
 		-comment: Reddit comment object
 	"""
-	if(parsedComment["mode"] == "on"):
+	mode = parsedComment["mode"]
+	if(mode == "on"):
 		onHandler(parsedComment,comment)
+	if(mode == "help"):
+		helpHandler(comment)
+
+def helpHandler(comment):
+	"""
+	Replies to comment with a help message.
+
+	"""
+	helpMessage = ""
+	replyToComment(comment,helpMessage)
+
+def whenHandler(request,comment):
+	clause = request["clause"]
+	submission = ""
+	if(clause[0] == "post"):
+		submission = "post"
+	elif(clause[0] == "comment"):
+		submission = "comment"
+
+	value = convertToNumber(clause[2]) #get the int value from the clause 
+
+	if(clause[1] == ">"):
+		
+
+
+
+
+def convertToNumber(stringValue):
+	"""
+	"""
 
 
 def onHandler(request,comment):
@@ -157,6 +188,8 @@ def onHandler(request,comment):
 	"""
 	print("Handling \"on\" request")
 	print(request)
+
+	clause = None #"on" commands do no have a clause
 	if(request["target"] == "post"):
 		parent = comment.submission #In this case, the parent is the originating thread
 		comment_id = comment.id #the id of the requesting comment
@@ -174,15 +207,14 @@ def onHandler(request,comment):
 		params = (
 					comment_id,parent_id,submission_type,comment_permalink,
 					parent_permalink,body_hash,poster,requester,subreddit_name,
-					expiration_date,num_upvotes,num_comments
+					expiration_date,num_upvotes,num_comments,clause
 					)
 
 		reply_body = (f"Hi u/{requester}! I'll make sure to remind you about u/{poster}\'s [post](http://reddit.com{parent_permalink})!")
 
 		addSubmissionToDatabase(params) #sends data to sql server
 		replyToComment(comment,reply_body)
-
-	if(request["target"] == "comment"):
+	elif(request["target"] == "comment"):
 		parent = comment.parent() #In this case, the parent is the parent comment
 		comment_id = comment.id
 		parent_id = parent.id
@@ -199,13 +231,15 @@ def onHandler(request,comment):
 		params = (
 					comment_id,parent_id,submission_type,comment_permalink,
 					parent_permalink,body_hash,poster,requester,subreddit_name,
-					expiration_date,num_upvotes,num_comments
+					expiration_date,num_upvotes,num_comments,clause
 					)
 
 		reply_body = (f"Hi u/{requester}! I'll make sure to remind you about u/{poster}\'s [comment](https://reddit.com{parent_permalink})!")
 
 		addSubmissionToDatabase(params) #sends data to sql server
 		replyToComment(comment,reply_body)
+	#elif(isUser(request["target"])):
+
 
 		
 
@@ -373,8 +407,8 @@ for submission in subreddit.hot(): #get all of the posts in the subreddit
 while(True):
 	submissions = retrieveSubmissionsFromDatabase()
 	submission_uids = [] #list of uids to deleete
-	for submission in submissions:  #   0           1       2     3          4           5           6      7        8        9           10          11           12
-		#Submission entry columns: (requester_id,target_id,uid,type,post_permalink,parent_permalink,hash,poster,requester,subreddit,expiration_date,num_upvotes,num_comments)
+	for submission in submissions:  #   0           1       2     3          4           5           6      7        8        9           10          11           12          13    
+		#Submission entry columns: (requester_id,target_id,uid,type,post_permalink,parent_permalink,hash,poster,requester,subreddit,expiration_date,num_upvotes,num_comments,clause)
 
 		target_id = submission[1] #the id of the target submission
 		oldHash = submission[6] #the old hash of the submission

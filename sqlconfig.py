@@ -16,12 +16,13 @@ TABLES['submissions'] = (
     "   `post_permalink` varchar(120) NOT NULL,"  #Dont know the max permalink size maybe max_subreddit_title_size + len("comments") + len(subreddit_id) + max_post_title_size + length of r/ and delimiting slashes
     "   `parent_permalink` varchar(120) NOT NULL,"
     "   `hash` varchar(32) NOT NULL,"
-    "   `poster` varchar(22),"  #Username max length: 20 + len("u/")
+    "   `poster` varchar(22) NOT NULL,"  #Username max length: 20 + len("u/")
     "   `requester` varchar(22) NOT NULL,"
     "   `subreddit` varchar(22) NOT NULL," #max subreddit length: 20 
     "   `expiration_date` int(13) NOT NULL,"
     "   `num_upvotes` int(32) NOT NULL,"
     "   `num_comments` int(32) NOT NULL,"
+    "   `clause` varchar(2),"  #clause can be null
     "   PRIMARY KEY (`uid`)"
     ") ENGINE=InnoDB")
 
@@ -62,8 +63,8 @@ for name, ddl in TABLES.items():
 
 
 add_submission = ("INSERT ignore INTO submissions"
-        "(requester_id,target_id,type,post_permalink,parent_permalink,hash,poster,requester,subreddit,expiration_date,num_upvotes,num_comments)"
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        "(requester_id,target_id,type,post_permalink,parent_permalink,hash,poster,requester,subreddit,expiration_date,num_upvotes,num_comments,clause)"
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         )
 
 retrieve_submissions = ("SELECT * FROM submissions")
@@ -71,7 +72,7 @@ retrieve_submissions = ("SELECT * FROM submissions")
 update_submission = ("UPDATE submissions "
                         "SET requester_id = %s, target_id = %s, type = %s, post_permalink = %s, "
                         "parent_permalink = %s, hash = %s, poster = %s, requester = %s, subreddit = %s, "
-                        "expiration_date = %s, num_upvotes = %s, num_comments = %s " 
+                        "expiration_date = %s, num_upvotes = %s, num_comments = %s, clause = %s " 
                         "WHERE uid = %s"
                     )
 
